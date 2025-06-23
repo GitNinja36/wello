@@ -1,7 +1,12 @@
 package routes
 
-import "github.com/go-chi/chi/v5"
+import (
+	"github.com/GitNinja36/wello-backend/internal/controllers"
+	"github.com/go-chi/chi/v5"
+)
 
 func UserRoutes(r chi.Router) {
-	// user routes
+	r.Post("/register/patient", controllers.RegisterPatient)
+	r.Post("/register/doctor", controllers.RegisterDoctor)
+	r.Post("/admin/approved/doctor/{id}", controllers.ApproveDoctor)
 }

@@ -11,7 +11,9 @@ type DoctorProfile struct {
 	Specialization    string    `json:"specialization"`
 	LicenseNumber     string    `json:"licenseNumber"`
 	ConsultationFees  float64   `json:"consultationFees"`
-	AvailabilitySlots string    `gorm:"type:jsonb" json:"availabilitySlots"` // JSON array
+	AvailabilitySlots string    `gorm:"type:jsonb" json:"availabilitySlots"`
+	IsPending         bool      `gorm:"default:true" json:"isPending"`
+	ApprovedBy        *string   `json:"approvedBy"`
 	CreatedAt         time.Time `json:"createdAt"`
 	UpdatedAt         time.Time `json:"updatedAt"`
 }

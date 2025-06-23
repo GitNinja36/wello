@@ -23,6 +23,7 @@ func SetupRoutes() *chi.Mux {
 
 	// All routes
 	r.Route("/auth", AuthRoutes)
+	r.Route("/admin", AdminRoutes)
 	r.Route("/user", UserRoutes)
 	r.Route("/doctor", DoctorRoutes)
 	r.Route("/appointment", AppointmentRoutes)

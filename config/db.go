@@ -33,6 +33,7 @@ func ConnectDB() {
 	err = db.AutoMigrate(
 		&models.User{},
 		&models.DoctorProfile{},
+		&models.AdminProfile{},
 		&models.Appointment{},
 		&models.MedicalCheck{},
 		&models.Order{},
