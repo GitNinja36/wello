@@ -6,5 +6,9 @@ import (
 )
 
 func AdminRoutes(r chi.Router) {
+	//create new admin
 	r.Post("/register", controllers.CreateAdminAccount)
+
+	//approved Doctor
+	r.Post("/approved/doctor/{id}", controllers.ApproveDoctor)
 }

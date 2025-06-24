@@ -111,7 +111,7 @@ func ApproveDoctor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	profile.IsPending = false
-	adminID := "admin-id-from-auth"
+	adminID := middleware.GetUserIDFromContext(r)
 	profile.ApprovedBy = &adminID
 	if err := config.DB.Save(&profile).Error; err != nil {
 		http.Error(w, "Failed to update profile", http.StatusInternalServerError)
@@ -207,6 +207,7 @@ func UpdateDoctorProfile(w http.ResponseWriter, r *http.Request) {
 		LicenseNumber    string  `json:"licenseNumber"`
 		ConsultationFees float64 `json:"consultationFees"`
 		Availability     string  `json:"availability"`
+		PhotoURL         string  `json:"photoUrl"`
 	}
 
 	userID := middleware.GetUserIDFromContext(r)
@@ -232,6 +233,10 @@ func UpdateDoctorProfile(w http.ResponseWriter, r *http.Request) {
 	profile.ConsultationFees = req.ConsultationFees
 	profile.AvailabilitySlots = req.Availability
 
+	if strings.TrimSpace(req.PhotoURL) != "" {
+		profile.PhotoURL = &req.PhotoURL
+	}
+
 	if err := config.DB.Save(&profile).Error; err != nil {
 		http.Error(w, "Failed to update profile", http.StatusInternalServerError)
 		return
@@ -245,10 +250,12 @@ func UpdateDoctorProfile(w http.ResponseWriter, r *http.Request) {
 // Update the Patient Profile
 func UpdatePatientProfile(w http.ResponseWriter, r *http.Request) {
 	type Request struct {
-		Name   string `json:"name"`
-		Email  string `json:"email"`
-		Age    int    `json:"age"`
-		Gender string `json:"gender"`
+		Name    string `json:"name"`
+		Email   string `json:"email"`
+		Age     int    `json:"age"`
+		Gender  string `json:"gender"`
+		Bio     string `json:"bio"`
+		Address string `json:"address"`
 	}
 
 	userID := middleware.GetUserIDFromContext(r)
@@ -271,6 +278,10 @@ func UpdatePatientProfile(w http.ResponseWriter, r *http.Request) {
 
 	user.Name = req.Name
 	user.Email = req.Email
+	user.Age = req.Age
+	user.Gender = req.Gender
+	user.Bio = req.Bio
+	user.Address = req.Address
 
 	if err := config.DB.Save(&user).Error; err != nil {
 		http.Error(w, "Failed to update user", http.StatusInternalServerError)
@@ -302,6 +313,41 @@ func GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 		"email":      user.Email,
 		"phone":      user.Phone,
 		"role":       user.Role,
+		"photoUrl":   user.PhotoURL,
+		"age":        user.Age,
+		"gender":     user.Gender,
+		"bio":        user.Bio,
+		"address":    user.Address,
 		"isApproved": user.IsApproved,
+	})
+}
+
+// update profile photo
+func UpdateProfilePhoto(w http.ResponseWriter, r *http.Request) {
+	type Request struct {
+		PhotoURL string `json:"photoUrl"`
+	}
+
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req Request
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.PhotoURL) == "" {
+		http.Error(w, "Invalid or missing photoUrl", http.StatusBadRequest)
+		return
+	}
+
+	if err := config.DB.Model(&models.User{}).Where("id = ?", userID).
+		Update("photo_url", req.PhotoURL).Error; err != nil {
+		http.Error(w, "Failed to update photo", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"message":  "Profile photo updated successfully",
+		"photoUrl": req.PhotoURL,
 	})
 }

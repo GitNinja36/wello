@@ -7,13 +7,27 @@ import (
 )
 
 func UserRoutes(r chi.Router) {
+	//register Patient
 	r.Post("/register/patient", controllers.RegisterPatient)
-	r.Post("/register/doctor", controllers.RegisterDoctor)
-	r.Post("/admin/approved/doctor/{id}", controllers.ApproveDoctor)
-	r.With(middleware.JWTAuthMiddleware).Post("/onboard/patient", controllers.CompletePatientOnboarding)
-	r.Get("/all", controllers.GetUsersByRole)
 
+	//register Doctor
+	r.Post("/register/doctor", controllers.RegisterDoctor)
+
+	//
+	r.With(middleware.JWTAuthMiddleware).Post("/onboard/patient", controllers.CompletePatientOnboarding)
+
+	//Update Doctor Profile
 	r.With(middleware.JWTAuthMiddleware).Put("/edit/doctor/profile", controllers.UpdateDoctorProfile)
+
+	//Update Patient Profile
 	r.With(middleware.JWTAuthMiddleware).Put("/edit/patient/profile", controllers.UpdatePatientProfile)
+
+	//Get Current User
 	r.With(middleware.JWTAuthMiddleware).Get("/me", controllers.GetCurrentUser)
+
+	//update photo
+	r.With(middleware.JWTAuthMiddleware).Put("/me/photo", controllers.UpdateProfilePhoto)
+
+	//Get all user
+	r.Get("/all", controllers.GetUsersByRole)
 }

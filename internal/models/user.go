@@ -10,10 +10,15 @@ type User struct {
 	Email             string         `gorm:"uniqueIndex" json:"email"`
 	Phone             string         `gorm:"uniqueIndex" json:"phone"`
 	Role              Role           `gorm:"type:text;default:'PATIENT'" json:"role"`
+	Age               int            `json:"age"`
+	Gender            string         `json:"gender"`
+	Bio               string         `json:"bio"`
+	Address           string         `json:"address"`
 	Password          string         `json:"-"`
 	Verified          bool           `gorm:"default:false" json:"verified"`
 	IsApproved        bool           `gorm:"default:false" json:"isApproved"`
 	RequestedAsDoctor bool           `gorm:"default:false" json:"requestedAsDoctor"`
+	PhotoURL          *string        `json:"photoUrl,omitempty"`
 	Appointments      []Appointment  `gorm:"foreignKey:PatientID" json:"appointments"`
 	Orders            []Order        `json:"orders"`
 	AdminProfile      *AdminProfile  `gorm:"foreignKey:UserID" json:"adminProfile"`
