@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/GitNinja36/wello-backend/config"
+	"github.com/GitNinja36/wello-backend/internal/models"
 	"github.com/GitNinja36/wello-backend/internal/utils"
 )
 
@@ -19,18 +21,19 @@ func SendOTPPhone(w http.ResponseWriter, r *http.Request) {
 		Phone string `json:"phone"`
 	}
 	var req Request
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
 
 	otp := generateOTP()
 	utils.SaveOTP(req.Phone, otp, 5*time.Minute)
 
-	err := utils.SendSMS(req.Phone, fmt.Sprintf("Your Wello OTP is: %s", otp))
-	if err != nil {
+	if err := utils.SendSMS(req.Phone, fmt.Sprintf("Your Wello OTP is: %s", otp)); err != nil {
 		http.Error(w, "Failed to send OTP via SMS", http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "OTP sent to phone",
 	})
@@ -42,16 +45,38 @@ func VerifyOTPPhone(w http.ResponseWriter, r *http.Request) {
 		OTP   string `json:"otp"`
 	}
 	var req Request
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
 
-	if utils.VerifyOTP(req.Phone, req.OTP) {
-		token := utils.GenerateJWT(req.Phone)
-		json.NewEncoder(w).Encode(map[string]string{
-			"token": token,
+	if !utils.VerifyOTP(req.Phone, req.OTP) {
+		http.Error(w, "Invalid OTP", http.StatusUnauthorized)
+		return
+	}
+
+	var user models.User
+	result := config.DB.Where("phone = ?", req.Phone).First(&user)
+	if result.Error == nil {
+		token := utils.GenerateJWT(user.ID, string(user.Role), user.IsApproved, false)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"token":        token,
+			"role":         user.Role,
+			"isApproved":   user.IsApproved,
+			"newUser":      false,
+			"needsProfile": false,
 		})
 		return
 	}
-	http.Error(w, "Invalid OTP", http.StatusUnauthorized)
+
+	token := utils.GenerateJWT(req.Phone, "PATIENT", true, true)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"token":        token,
+		"role":         "PATIENT",
+		"isApproved":   true,
+		"newUser":      true,
+		"needsProfile": true,
+	})
 }
 
 func SendOTPEmail(w http.ResponseWriter, r *http.Request) {
@@ -59,14 +84,16 @@ func SendOTPEmail(w http.ResponseWriter, r *http.Request) {
 		Email string `json:"email"`
 	}
 	var req Request
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
 
 	otp := generateOTP()
 	utils.SaveOTP(req.Email, otp, 5*time.Minute)
 
-	err := utils.SendEmailOTP(req.Email, otp)
-	if err != nil {
-		http.Error(w, "Failed to send email", http.StatusInternalServerError)
+	if err := utils.SendEmailOTP(req.Email, otp); err != nil {
+		http.Error(w, "Failed to send OTP via email", http.StatusInternalServerError)
 		return
 	}
 
@@ -81,14 +108,36 @@ func VerifyOTPEmail(w http.ResponseWriter, r *http.Request) {
 		OTP   string `json:"otp"`
 	}
 	var req Request
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
 
-	if utils.VerifyOTP(req.Email, req.OTP) {
-		token := utils.GenerateJWT(req.Email)
-		json.NewEncoder(w).Encode(map[string]string{
-			"token": token,
+	if !utils.VerifyOTP(req.Email, req.OTP) {
+		http.Error(w, "Invalid OTP", http.StatusUnauthorized)
+		return
+	}
+
+	var user models.User
+	result := config.DB.Where("email = ?", req.Email).First(&user)
+	if result.Error == nil {
+		token := utils.GenerateJWT(user.ID, string(user.Role), user.IsApproved, false)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"token":        token,
+			"role":         user.Role,
+			"isApproved":   user.IsApproved,
+			"newUser":      false,
+			"needsProfile": false,
 		})
 		return
 	}
-	http.Error(w, "Invalid OTP", http.StatusUnauthorized)
+
+	token := utils.GenerateJWT(req.Email, "PATIENT", true, true)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"token":        token,
+		"role":         "PATIENT",
+		"isApproved":   true,
+		"newUser":      true,
+		"needsProfile": true,
+	})
 }

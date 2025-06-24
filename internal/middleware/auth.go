@@ -3,37 +3,38 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"os"
 	"strings"
 
+	"github.com/GitNinja36/wello-backend/internal/utils"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtKey = []byte(os.Getenv("JWT_SECRET"))
-
-type contextKey string
-
-const UserKey contextKey = "user"
+var jwtSecret = []byte("your-secret-key")
 
 func Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "Missing Authorization header", http.StatusUnauthorized)
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
 		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-		claims := &jwt.MapClaims{}
-		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-			return jwtKey, nil
+		token, err := jwt.ParseWithClaims(tokenStr, &utils.Claims{}, func(t *jwt.Token) (interface{}, error) {
+			return jwtSecret, nil
 		})
-
 		if err != nil || !token.Valid {
-			http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}
-		ctx := context.WithValue(r.Context(), UserKey, (*claims)["sub"])
+
+		claims, ok := token.Claims.(*utils.Claims)
+		if !ok {
+			http.Error(w, "Invalid token claims", http.StatusUnauthorized)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), "userID", claims.UserID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

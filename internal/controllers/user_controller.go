@@ -122,3 +122,35 @@ func ApproveDoctor(w http.ResponseWriter, r *http.Request) {
 		"message": "Doctor approved successfully",
 	})
 }
+
+// patient-onboarding
+func CompletePatientOnboarding(w http.ResponseWriter, r *http.Request) {
+	type Request struct {
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	}
+
+	userID := r.Context().Value("userID").(string)
+
+	var req Request
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	// Update user
+	if err := config.DB.Model(&models.User{}).Where("id = ?", userID).
+		Updates(map[string]interface{}{
+			"name":  req.Name,
+			"email": req.Email,
+		}).Error; err != nil {
+		http.Error(w, "Failed to update profile", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Patient profile completed",
+	})
+}
+
+//
