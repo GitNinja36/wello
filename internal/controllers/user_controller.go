@@ -3,8 +3,11 @@ package controllers
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/GitNinja36/wello-backend/config"
+	"github.com/GitNinja36/wello-backend/internal/middleware"
 	"github.com/GitNinja36/wello-backend/internal/models"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -153,4 +156,152 @@ func CompletePatientOnboarding(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-//
+// Get all Users By Role
+func GetUsersByRole(w http.ResponseWriter, r *http.Request) {
+	role := strings.ToUpper(r.URL.Query().Get("role"))
+
+	if role != "PATIENT" && role != "DOCTOR" {
+		http.Error(w, "Invalid or missing role query param", http.StatusBadRequest)
+		return
+	}
+
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+	offset := (page - 1) * limit
+
+	var users []models.User
+	if err := config.DB.
+		Where("role = ?", role).
+		Limit(limit).Offset(offset).
+		Find(&users).Error; err != nil {
+		http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
+		return
+	}
+
+	var total int64
+	config.DB.Model(&models.User{}).Where("role = ?", role).Count(&total)
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"role":  role,
+		"page":  page,
+		"limit": limit,
+		"total": total,
+		"users": users,
+	})
+
+}
+
+// Update the Doctor Profile
+func UpdateDoctorProfile(w http.ResponseWriter, r *http.Request) {
+	type Request struct {
+		Specialization   string  `json:"specialization"`
+		LicenseNumber    string  `json:"licenseNumber"`
+		ConsultationFees float64 `json:"consultationFees"`
+		Availability     string  `json:"availability"`
+	}
+
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req Request
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	var profile models.DoctorProfile
+	if err := config.DB.Where("user_id = ?", userID).First(&profile).Error; err != nil {
+		http.Error(w, "Doctor profile not found", http.StatusNotFound)
+		return
+	}
+
+	profile.Specialization = req.Specialization
+	profile.LicenseNumber = req.LicenseNumber
+	profile.ConsultationFees = req.ConsultationFees
+	profile.AvailabilitySlots = req.Availability
+
+	if err := config.DB.Save(&profile).Error; err != nil {
+		http.Error(w, "Failed to update profile", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Doctor profile updated successfully",
+	})
+}
+
+// Update the Patient Profile
+func UpdatePatientProfile(w http.ResponseWriter, r *http.Request) {
+	type Request struct {
+		Name   string `json:"name"`
+		Email  string `json:"email"`
+		Age    int    `json:"age"`
+		Gender string `json:"gender"`
+	}
+
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req Request
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid input", http.StatusBadRequest)
+		return
+	}
+
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", userID).Error; err != nil {
+		http.Error(w, "User not found", http.StatusInternalServerError)
+		return
+	}
+
+	user.Name = req.Name
+	user.Email = req.Email
+
+	if err := config.DB.Save(&user).Error; err != nil {
+		http.Error(w, "Failed to update user", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Patient profile updated successfully",
+	})
+}
+
+// Get user info
+func GetCurrentUser(w http.ResponseWriter, r *http.Request) {
+	UserId := middleware.GetUserIDFromContext(r)
+	if UserId == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var user models.User
+	if err := config.DB.First(&user, "id = ?", UserId).Error; err != nil {
+		http.Error(w, "User not found", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":         user.ID,
+		"name":       user.Name,
+		"email":      user.Email,
+		"phone":      user.Phone,
+		"role":       user.Role,
+		"isApproved": user.IsApproved,
+	})
+}

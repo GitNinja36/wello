@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -36,4 +37,19 @@ func GenerateJWT(userID, role string, isApproved, needsProfile bool) string {
 		return ""
 	}
 	return tokenString
+}
+
+func ParseJWT(tokenString string) (*Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return jwtSecret, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return nil, fmt.Errorf("invalid token")
+	}
+	return claims, nil
 }

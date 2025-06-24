@@ -6,35 +6,39 @@ import (
 	"strings"
 
 	"github.com/GitNinja36/wello-backend/internal/utils"
-	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret = []byte("your-secret-key")
+type contextKey string
 
-func Authenticate(next http.Handler) http.Handler {
+const UserIDKey = contextKey("userId")
+
+func JWTAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
-		if !strings.HasPrefix(authHeader, "Bearer ") {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		if authHeader == "" {
+			http.Error(w, "Authorization header missing", http.StatusUnauthorized)
 			return
 		}
 
-		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-		token, err := jwt.ParseWithClaims(tokenStr, &utils.Claims{}, func(t *jwt.Token) (interface{}, error) {
-			return jwtSecret, nil
-		})
-		if err != nil || !token.Valid {
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			http.Error(w, "Invalid Authorization format", http.StatusUnauthorized)
 			return
 		}
 
-		claims, ok := token.Claims.(*utils.Claims)
-		if !ok {
-			http.Error(w, "Invalid token claims", http.StatusUnauthorized)
+		// Verify and parse the token
+		claims, err := utils.ParseJWT(parts[1])
+		if err != nil {
+			http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "userID", claims.UserID)
+		ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func GetUserIDFromContext(r *http.Request) string {
+	userID, _ := r.Context().Value(UserIDKey).(string)
+	return userID
 }
