@@ -179,16 +179,30 @@ func GetUsersByRole(w http.ResponseWriter, r *http.Request) {
 	offset := (page - 1) * limit
 
 	var users []models.User
-	if err := config.DB.
+	var total int64
+
+	config.DB.Model(&models.User{}).
 		Where("role = ?", role).
-		Limit(limit).Offset(offset).
+		Count(&total)
+
+	db := config.DB.Preload("Appointments").Preload("Orders")
+
+	if role == "DOCTOR" {
+		db = db.Preload("DoctorProfile")
+	} else if role == "PATIENT" {
+		db = db
+	} else {
+		db = db.Preload("AdminProfile")
+	}
+
+	if err := db.
+		Where("role = ?", role).
+		Limit(limit).
+		Offset(offset).
 		Find(&users).Error; err != nil {
 		http.Error(w, "Failed to fetch users", http.StatusInternalServerError)
 		return
 	}
-
-	var total int64
-	config.DB.Model(&models.User{}).Where("role = ?", role).Count(&total)
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"role":  role,
@@ -196,54 +210,6 @@ func GetUsersByRole(w http.ResponseWriter, r *http.Request) {
 		"limit": limit,
 		"total": total,
 		"users": users,
-	})
-
-}
-
-// Update the Doctor Profile
-func UpdateDoctorProfile(w http.ResponseWriter, r *http.Request) {
-	type Request struct {
-		Specialization   string  `json:"specialization"`
-		LicenseNumber    string  `json:"licenseNumber"`
-		ConsultationFees float64 `json:"consultationFees"`
-		Availability     string  `json:"availability"`
-		PhotoURL         string  `json:"photoUrl"`
-	}
-
-	userID := middleware.GetUserIDFromContext(r)
-	if userID == "" {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	var req Request
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
-		return
-	}
-
-	var profile models.DoctorProfile
-	if err := config.DB.Where("user_id = ?", userID).First(&profile).Error; err != nil {
-		http.Error(w, "Doctor profile not found", http.StatusNotFound)
-		return
-	}
-
-	profile.Specialization = req.Specialization
-	profile.LicenseNumber = req.LicenseNumber
-	profile.ConsultationFees = req.ConsultationFees
-	profile.AvailabilitySlots = req.Availability
-
-	if strings.TrimSpace(req.PhotoURL) != "" {
-		profile.PhotoURL = &req.PhotoURL
-	}
-
-	if err := config.DB.Save(&profile).Error; err != nil {
-		http.Error(w, "Failed to update profile", http.StatusInternalServerError)
-		return
-	}
-
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Doctor profile updated successfully",
 	})
 }
 

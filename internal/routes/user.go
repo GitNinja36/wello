@@ -16,9 +16,6 @@ func UserRoutes(r chi.Router) {
 	//
 	r.With(middleware.JWTAuthMiddleware).Post("/onboard/patient", controllers.CompletePatientOnboarding)
 
-	//Update Doctor Profile
-	r.With(middleware.JWTAuthMiddleware).Put("/edit/doctor/profile", controllers.UpdateDoctorProfile)
-
 	//Update Patient Profile
 	r.With(middleware.JWTAuthMiddleware).Put("/edit/patient/profile", controllers.UpdatePatientProfile)
 

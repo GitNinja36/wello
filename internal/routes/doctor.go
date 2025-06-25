@@ -1,7 +1,33 @@
 package routes
 
-import "github.com/go-chi/chi/v5"
+import (
+	"github.com/GitNinja36/wello-backend/internal/controllers"
+	"github.com/GitNinja36/wello-backend/internal/middleware"
+	"github.com/go-chi/chi/v5"
+)
 
 func DoctorRoutes(r chi.Router) {
-	// doctor profile routes
+	//update profile
+	r.With(middleware.JWTAuthMiddleware).Put("/profile", controllers.UpdateDoctorProfile)
+
+	//update doctor slot
+	r.With(middleware.JWTAuthMiddleware).Post("/slots", controllers.UpdateDoctorAvailability)
+
+	//update doctor fee
+	r.With(middleware.JWTAuthMiddleware).Put("/fee", controllers.UpdateDoctorFee)
+
+	//get All upcoming appointments
+	r.With(middleware.JWTAuthMiddleware).Get("/dashboard/appointments", controllers.GetDoctorAppointments)
+
+	//accept or reject appointment
+	r.With(middleware.JWTAuthMiddleware).Put("/dashboard/appointment/{id}", controllers.RespondToAppointment)
+
+	//get Doctor Earnings
+	r.With(middleware.JWTAuthMiddleware).Get("/earnings", controllers.GetDoctorEarnings)
+
+	//get doctor reviews
+	r.With(middleware.JWTAuthMiddleware).Get("/reviews", controllers.GetDoctorReviews)
+
+	// to created Dummy appointment --> for test route
+	r.With(middleware.JWTAuthMiddleware).Post("/debug/seed-appointment", controllers.SeedDummyAppointment)
 }

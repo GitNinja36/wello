@@ -37,6 +37,7 @@ func ConnectDB() {
 		&models.Appointment{},
 		&models.MedicalCheck{},
 		&models.Order{},
+		&models.Review{},
 	)
 	if err != nil {
 		log.Fatalf(" AutoMigration failed: %v", err)

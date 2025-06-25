@@ -18,10 +18,10 @@ const (
 type AppointmentStatus string
 
 const (
-	APPT_PENDING AppointmentStatus = "PENDING"
-	CONFIRMED    AppointmentStatus = "CONFIRMED"
-	COMPLETED    AppointmentStatus = "COMPLETED"
-	CANCELLED    AppointmentStatus = "CANCELLED"
+	PENDING   AppointmentStatus = "PENDING"
+	ACCEPTED  AppointmentStatus = "ACCEPTED"
+	REJECTED  AppointmentStatus = "REJECTED"
+	COMPLETED AppointmentStatus = "COMPLETED"
 )
 
 type TestType string

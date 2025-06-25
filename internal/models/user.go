@@ -22,7 +22,7 @@ type User struct {
 	Appointments      []Appointment  `gorm:"foreignKey:PatientID" json:"appointments"`
 	Orders            []Order        `json:"orders"`
 	AdminProfile      *AdminProfile  `gorm:"foreignKey:UserID" json:"adminProfile"`
-	DoctorProfile     *DoctorProfile `gorm:"foreignKey:UserID" json:"doctorProfile"`
+	DoctorProfile     *DoctorProfile `gorm:"foreignKey:UserID" json:"doctorProfile,omitempty"`
 	CreatedAt         time.Time      `json:"createdAt"`
 	UpdatedAt         time.Time      `json:"updatedAt"`
 }
