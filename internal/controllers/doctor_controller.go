@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -333,5 +334,53 @@ func SeedDummyAppointment(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{
 		"message":        "Dummy appointment created",
 		"appointment_id": dummyAppointment.ID,
+	})
+}
+
+// to Reschedule Appointment
+func RescheduleAppointment(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r)
+	fmt.Println("doctor user id from token:", userID)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	appointmentID := chi.URLParam(r, "id")
+	if appointmentID == "" {
+		http.Error(w, "Missing appointment ID", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		NewDate time.Time `json:"newDate"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	var profile models.DoctorProfile
+	if err := config.DB.Where("user_id = ?", userID).First(&profile).Error; err != nil {
+		http.Error(w, "Doctor profile not found", http.StatusNotFound)
+		return
+	}
+
+	var appointment models.Appointment
+	if err := config.DB.Preload("Patient").Where("id = ? AND doctor_profile_id = ?", appointmentID, profile.ID).First(&appointment).Error; err != nil {
+		http.Error(w, "Appointment not found", http.StatusNotFound)
+		return
+	}
+
+	appointment.ScheduledAt = req.NewDate
+	appointment.Status = models.RESCHEDULE_REQUESTED
+
+	if err := config.DB.Save(&appointment).Error; err != nil {
+		http.Error(w, "Failed to update appointment", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Appointment reschedule request sent to patient",
 	})
 }

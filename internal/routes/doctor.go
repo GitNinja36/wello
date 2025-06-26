@@ -30,4 +30,8 @@ func DoctorRoutes(r chi.Router) {
 
 	// to created Dummy appointment --> for test route
 	r.With(middleware.JWTAuthMiddleware).Post("/debug/seed-appointment", controllers.SeedDummyAppointment)
+
+	//to Reschedule Appointment
+	r.With(middleware.JWTAuthMiddleware).Put("/appointment/reschedule/{id}", controllers.RescheduleAppointment)
+
 }

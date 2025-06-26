@@ -25,8 +25,6 @@ func JWTAuthMiddleware(next http.Handler) http.Handler {
 			http.Error(w, "Invalid Authorization format", http.StatusUnauthorized)
 			return
 		}
-
-		// Verify and parse the token
 		claims, err := utils.ParseJWT(parts[1])
 		if err != nil {
 			http.Error(w, "Invalid or expired token", http.StatusUnauthorized)

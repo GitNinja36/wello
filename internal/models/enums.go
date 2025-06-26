@@ -18,10 +18,14 @@ const (
 type AppointmentStatus string
 
 const (
-	PENDING   AppointmentStatus = "PENDING"
-	ACCEPTED  AppointmentStatus = "ACCEPTED"
-	REJECTED  AppointmentStatus = "REJECTED"
-	COMPLETED AppointmentStatus = "COMPLETED"
+	PENDING               AppointmentStatus = "PENDING"
+	ACCEPTED              AppointmentStatus = "ACCEPTED"
+	REJECTED              AppointmentStatus = "REJECTED"
+	COMPLETED             AppointmentStatus = "COMPLETED"
+	RESCHEDULE_REQUESTED  AppointmentStatus = "RESCHEDULE_REQUESTED"
+	RESCHEDULED           AppointmentStatus = "RESCHEDULED"
+	RESCHEDULE_REJECTED   AppointmentStatus = "RESCHEDULE_REJECTED"
+	RESCHEDULED_CONFIRMED AppointmentStatus = "RESCHEDULED_CONFIRMED"
 )
 
 type TestType string

@@ -189,8 +189,6 @@ func GetUsersByRole(w http.ResponseWriter, r *http.Request) {
 
 	if role == "DOCTOR" {
 		db = db.Preload("DoctorProfile")
-	} else if role == "PATIENT" {
-		db = db
 	} else {
 		db = db.Preload("AdminProfile")
 	}
