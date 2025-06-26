@@ -2,11 +2,13 @@ package controllers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/GitNinja36/wello-backend/config"
 	"github.com/GitNinja36/wello-backend/internal/middleware"
 	"github.com/GitNinja36/wello-backend/internal/models"
+	"github.com/GitNinja36/wello-backend/internal/utils"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -55,7 +57,47 @@ func PatientRespondReschedule(w http.ResponseWriter, r *http.Request) {
 		message = "Reschedule accepted"
 	}
 
+	var doctorProfile models.DoctorProfile
+	if err := config.DB.Preload("User").Where("id = ?", appointment.DoctorProfileID).First(&doctorProfile).Error; err == nil {
+		go utils.SendEmail(
+			doctorProfile.User.Email,
+			"Patient Response to Reschedule",
+			fmt.Sprintf("The patient has %s your reschedule request.",
+				map[bool]string{true: "accepted", false: "rejected"}[req.Accept]),
+		)
+		go utils.SendSMS(
+			doctorProfile.User.Phone,
+			fmt.Sprintf("Patient %s your reschedule request.",
+				map[bool]string{true: "accepted", false: "rejected"}[req.Accept]),
+		)
+	}
+
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": message,
+	})
+}
+
+// returns all future confirmed appointments
+func GetUpcomingAppointmentsForPatient(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var appointments []models.Appointment
+	if err := config.DB.
+		Preload("DoctorProfile.User").
+		Preload("Patient").
+		Where("patient_id = ? AND scheduled_at > NOW() AND status IN ?", userID,
+			[]models.AppointmentStatus{models.PENDING, models.ACCEPTED, models.RESCHEDULED_CONFIRMED}).
+		Order("scheduled_at ASC").
+		Find(&appointments).Error; err != nil {
+		http.Error(w, "Failed to fetch upcoming appointments", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"upcomingAppointments": appointments,
 	})
 }

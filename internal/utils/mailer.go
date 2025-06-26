@@ -23,3 +23,23 @@ func SendEmailOTP(to, otp string) error {
 	}
 	return err
 }
+
+// SendEmail - (for appointment/reschedule notifications)
+func SendEmail(to, subject, body string) error {
+	from := os.Getenv("SMTP_EMAIL")
+	pass := os.Getenv("SMTP_PASSWORD")
+
+	msg := "From: " + os.Getenv("EMAIL_FROM_NAME") + " <" + from + ">\n" +
+		"To: " + to + "\n" +
+		"Subject: " + subject + "\n\n" + body
+
+	err := smtp.SendMail("smtp.gmail.com:587",
+		smtp.PlainAuth("", from, pass, "smtp.gmail.com"),
+		from, []string{to}, []byte(msg),
+	)
+
+	if err != nil {
+		fmt.Println("Failed to send email:", err)
+	}
+	return err
+}

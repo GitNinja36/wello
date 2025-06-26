@@ -34,4 +34,9 @@ func DoctorRoutes(r chi.Router) {
 	//to Reschedule Appointment
 	r.With(middleware.JWTAuthMiddleware).Put("/appointment/reschedule/{id}", controllers.RescheduleAppointment)
 
+	// view reschedule requests
+	r.With(middleware.JWTAuthMiddleware).Get("/reschedule-requests", controllers.GetDoctorRescheduleRequests)
+
+	// View all upcoming appointments for doctor
+	r.With(middleware.JWTAuthMiddleware).Get("/upcoming-appointments", controllers.GetUpcomingAppointmentsForDoctor)
 }

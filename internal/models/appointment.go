@@ -9,7 +9,7 @@ type Appointment struct {
 	PatientID       string            `json:"patientId"`
 	Patient         User              `gorm:"foreignKey:PatientID"`
 	DoctorProfileID string            `json:"doctorProfileId"`
-	DoctorProfile   DoctorProfile     `gorm:"foreignKey:DoctorProfileID"`
+	DoctorProfile   DoctorProfile     `gorm:"foreignKey:DoctorProfileID" json:"DoctorProfile"`
 	Mode            AppointmentMode   `gorm:"type:text;default:'ONLINE'" json:"mode"`
 	Status          AppointmentStatus `gorm:"type:text;default:'PENDING'" json:"status"`
 	ScheduledAt     time.Time         `json:"scheduledAt"`

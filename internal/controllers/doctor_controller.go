@@ -9,6 +9,7 @@ import (
 	"github.com/GitNinja36/wello-backend/config"
 	"github.com/GitNinja36/wello-backend/internal/middleware"
 	"github.com/GitNinja36/wello-backend/internal/models"
+	"github.com/GitNinja36/wello-backend/internal/utils"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -340,7 +341,6 @@ func SeedDummyAppointment(w http.ResponseWriter, r *http.Request) {
 // to Reschedule Appointment
 func RescheduleAppointment(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserIDFromContext(r)
-	fmt.Println("doctor user id from token:", userID)
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -380,7 +380,79 @@ func RescheduleAppointment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	go utils.SendEmail(
+		appointment.Patient.Email,
+		"Reschedule Request from Doctor",
+		fmt.Sprintf("Your appointment has been rescheduled to: %s", req.NewDate.Format("Jan 2, 2006 3:04PM")),
+	)
+
+	go utils.SendSMS(
+		appointment.Patient.Phone,
+		fmt.Sprintf("Your appointment has been rescheduled to: %s", req.NewDate.Format("Jan 2, 2006 3:04PM")),
+	)
+
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Appointment reschedule request sent to patient",
+	})
+}
+
+// get appointments where reschedule is requested
+func GetDoctorRescheduleRequests(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var doctorProfile models.DoctorProfile
+	if err := config.DB.Where("user_id = ?", userID).First(&doctorProfile).Error; err != nil {
+		http.Error(w, "Doctor profile not found", http.StatusNotFound)
+		return
+	}
+
+	var appointments []models.Appointment
+	if err := config.DB.
+		Preload("Patient").
+		Where("doctor_profile_id = ? AND status = ?", doctorProfile.ID, models.RESCHEDULE_REQUESTED).
+		Order("scheduled_at ASC").
+		Find(&appointments).Error; err != nil {
+		http.Error(w, "Failed to fetch reschedule requests", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"rescheduleRequests": appointments,
+	})
+}
+
+// returns all upcoming appointments for a doctor
+func GetUpcomingAppointmentsForDoctor(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var profile models.DoctorProfile
+	if err := config.DB.Where("user_id = ?", userID).First(&profile).Error; err != nil {
+		http.Error(w, "Doctor profile not found", http.StatusNotFound)
+		return
+	}
+
+	var appointments []models.Appointment
+	if err := config.DB.
+		Preload("Patient").
+		Preload("DoctorProfile").
+		Where("doctor_profile_id = ? AND scheduled_at > NOW() AND status IN ?",
+			profile.ID,
+			[]models.AppointmentStatus{models.ACCEPTED, models.RESCHEDULED_CONFIRMED}).
+		Order("scheduled_at ASC").
+		Find(&appointments).Error; err != nil {
+		http.Error(w, "Failed to fetch appointments", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"upcomingAppointments": appointments,
 	})
 }

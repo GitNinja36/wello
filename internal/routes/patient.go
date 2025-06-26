@@ -11,4 +11,7 @@ func PatientRoutes(r chi.Router) {
 	// Patient response to reschedule request
 	r.With(middleware.JWTAuthMiddleware).Put("/appointment/respond-reschedule/{id}", controllers.PatientRespondReschedule)
 
+	// View upcoming appointments for patient
+	r.With(middleware.JWTAuthMiddleware).Get("/appointments/upcoming", controllers.GetUpcomingAppointmentsForPatient)
+
 }
