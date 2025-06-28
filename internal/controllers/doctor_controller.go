@@ -233,9 +233,53 @@ func GetDoctorEarnings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	period := r.URL.Query().Get("period")
+	if period == "" {
+		period = "all"
+	}
+
+	type GroupedResult struct {
+		Label string  `json:"label"`
+		Total float64 `json:"total"`
+		Count int64   `json:"count"`
+	}
+
+	var groupedData []GroupedResult
+
+	timeFormat := ""
+	switch period {
+	case "daily":
+		timeFormat = "YYYY-MM-DD"
+	case "weekly":
+		timeFormat = "IYYY-IW"
+	case "monthly":
+		timeFormat = "YYYY-MM"
+	case "yearly":
+		timeFormat = "YYYY"
+	}
+
+	if period != "all" {
+		err = config.DB.
+			Model(&models.Appointment{}).
+			Select(`to_char(appointments.scheduled_at, ?) as label,
+				    SUM(doctor_profiles.consultation_fees) as total,
+				    COUNT(*) as count`, timeFormat).
+			Joins("JOIN doctor_profiles ON appointments.doctor_profile_id = doctor_profiles.id").
+			Where("appointments.doctor_profile_id = ? AND appointments.status = ?", profile.ID, models.COMPLETED).
+			Group("label").
+			Order("label ASC").
+			Scan(&groupedData).Error
+		if err != nil {
+			http.Error(w, "Failed to get grouped earnings", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"totalEarnings":     totalEarnings,
 		"totalAppointments": totalAppointments,
+		"groupedData":       groupedData,
+		"period":            period,
 	})
 }
 
@@ -454,5 +498,99 @@ func GetUpcomingAppointmentsForDoctor(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"upcomingAppointments": appointments,
+	})
+}
+
+// mark appointment as completed
+func CompleteAppointment(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	appointmentID := chi.URLParam(r, "id")
+	if appointmentID == "" {
+		http.Error(w, "Missing appointment ID", http.StatusBadRequest)
+		return
+	}
+
+	var profile models.DoctorProfile
+	if err := config.DB.Where("user_id = ?", userID).First(&profile).Error; err != nil {
+		http.Error(w, "Doctor profile not found", http.StatusNotFound)
+		return
+	}
+
+	var appointment models.Appointment
+	if err := config.DB.
+		Where("id = ? AND doctor_profile_id = ?", appointmentID, profile.ID).
+		First(&appointment).Error; err != nil {
+		http.Error(w, "Appointment not found", http.StatusNotFound)
+		return
+	}
+
+	if appointment.Status != models.ACCEPTED && appointment.Status != models.RESCHEDULED_CONFIRMED {
+		http.Error(w, "Only accepted/rescheduled appointments can be marked as completed", http.StatusBadRequest)
+		return
+	}
+
+	appointment.Status = models.COMPLETED
+	if err := config.DB.Save(&appointment).Error; err != nil {
+		http.Error(w, "Failed to mark appointment as completed", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Appointment marked as completed",
+	})
+}
+
+// Add Appointment Summary
+func AddAppointmentSummary(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	appointmentID := chi.URLParam(r, "id")
+	if appointmentID == "" {
+		http.Error(w, "Missing appointment ID", http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		Summary string `json:"summary"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Summary == "" {
+		http.Error(w, "Invalid or empty summary", http.StatusBadRequest)
+		return
+	}
+
+	var profile models.DoctorProfile
+	if err := config.DB.Where("user_id = ?", userID).First(&profile).Error; err != nil {
+		http.Error(w, "Doctor profile not found", http.StatusNotFound)
+		return
+	}
+
+	var appointment models.Appointment
+	if err := config.DB.Where("id = ? AND doctor_profile_id = ?", appointmentID, profile.ID).First(&appointment).Error; err != nil {
+		http.Error(w, "Appointment not found", http.StatusNotFound)
+		return
+	}
+
+	if appointment.Status != models.COMPLETED {
+		http.Error(w, "Summary can only be added to completed appointments", http.StatusBadRequest)
+		return
+	}
+
+	appointment.Summary = &req.Summary
+	if err := config.DB.Save(&appointment).Error; err != nil {
+		http.Error(w, "Failed to save summary", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Summary added successfully",
 	})
 }

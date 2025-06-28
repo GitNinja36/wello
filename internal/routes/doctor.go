@@ -39,4 +39,11 @@ func DoctorRoutes(r chi.Router) {
 
 	// View all upcoming appointments for doctor
 	r.With(middleware.JWTAuthMiddleware).Get("/upcoming-appointments", controllers.GetUpcomingAppointmentsForDoctor)
+
+	// mark appointment as completed
+	r.With(middleware.JWTAuthMiddleware).Put("/appointments/{id}/complete", controllers.CompleteAppointment)
+
+	//Add Appointment Summary
+	r.With(middleware.JWTAuthMiddleware).Put("/appointments/{id}/summary", controllers.AddAppointmentSummary)
+
 }

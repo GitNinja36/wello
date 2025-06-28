@@ -101,3 +101,40 @@ func GetUpcomingAppointmentsForPatient(w http.ResponseWriter, r *http.Request) {
 		"upcomingAppointments": appointments,
 	})
 }
+
+// Get Patient History for a Doctor
+func GetPatientHistoryForDoctor(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	patientID := chi.URLParam(r, "patientId")
+	if patientID == "" {
+		http.Error(w, "Missing patient ID", http.StatusBadRequest)
+		return
+	}
+
+	var doctorProfile models.DoctorProfile
+	if err := config.DB.Where("user_id = ?", userID).First(&doctorProfile).Error; err != nil {
+		http.Error(w, "Doctor profile not found", http.StatusNotFound)
+		return
+	}
+
+	var appointments []models.Appointment
+	if err := config.DB.
+		Preload("Patient").
+		Preload("DoctorProfile").
+		Where("doctor_profile_id = ? AND patient_id = ? AND status = ?",
+			doctorProfile.ID, patientID, models.COMPLETED).
+		Order("scheduled_at DESC").
+		Find(&appointments).Error; err != nil {
+		http.Error(w, "Failed to fetch patient history", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"patientHistory": appointments,
+	})
+}
