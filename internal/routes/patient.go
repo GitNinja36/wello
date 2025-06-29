@@ -15,6 +15,6 @@ func PatientRoutes(r chi.Router) {
 	r.With(middleware.JWTAuthMiddleware).Get("/appointments/upcoming", controllers.GetUpcomingAppointmentsForPatient)
 
 	//Get Patient History for a Doctor
-	r.With(middleware.JWTAuthMiddleware).Get("/patients/{patientId}/history", controllers.GetPatientHistoryForDoctor)
+	r.With(middleware.JWTAuthMiddleware).Get("/{patientId}/history", controllers.GetPatientHistoryForDoctor)
 
 }

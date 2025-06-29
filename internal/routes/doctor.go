@@ -46,4 +46,7 @@ func DoctorRoutes(r chi.Router) {
 	//Add Appointment Summary
 	r.With(middleware.JWTAuthMiddleware).Put("/appointments/{id}/summary", controllers.AddAppointmentSummary)
 
+	//Get All Unique Patients of a Doctor
+	r.With(middleware.JWTAuthMiddleware).Get("/patients", controllers.GetAllPatientsForDoctor)
+
 }

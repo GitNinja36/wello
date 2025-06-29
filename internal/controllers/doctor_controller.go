@@ -594,3 +594,33 @@ func AddAppointmentSummary(w http.ResponseWriter, r *http.Request) {
 		"message": "Summary added successfully",
 	})
 }
+
+// Get All Unique Patients of a Doctor
+func GetAllPatientsForDoctor(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var doctorProfile models.DoctorProfile
+	if err := config.DB.Where("user_id = ?", userID).First(&doctorProfile).Error; err != nil {
+		http.Error(w, "Doctor profile not found", http.StatusNotFound)
+		return
+	}
+
+	var patients []models.User
+	if err := config.DB.
+		Model(&models.Appointment{}).
+		Select("DISTINCT users.*").
+		Joins("JOIN users ON users.id = appointments.patient_id").
+		Where("appointments.doctor_profile_id = ? AND appointments.status = ?", doctorProfile.ID, models.COMPLETED).
+		Scan(&patients).Error; err != nil {
+		http.Error(w, "Failed to fetch patients", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"patients": patients,
+	})
+}
