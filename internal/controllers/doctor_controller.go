@@ -11,6 +11,7 @@ import (
 	"github.com/GitNinja36/wello-backend/internal/models"
 	"github.com/GitNinja36/wello-backend/internal/utils"
 	"github.com/go-chi/chi/v5"
+	"github.com/jung-kurt/gofpdf"
 )
 
 // update Doctor profile
@@ -623,4 +624,62 @@ func GetAllPatientsForDoctor(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"patients": patients,
 	})
+}
+
+// Download/Print Summary as PDF
+func GenerateSummaryPDF(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserIDFromContext(r)
+	if userID == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	appointmentID := chi.URLParam(r, "id")
+	if appointmentID == "" {
+		http.Error(w, "Missing appointment ID", http.StatusBadRequest)
+		return
+	}
+
+	var doctorProfile models.DoctorProfile
+	if err := config.DB.Where("user_id = ?", userID).First(&doctorProfile).Error; err != nil {
+		http.Error(w, "Doctor profile not found", http.StatusNotFound)
+		return
+	}
+
+	var appointment models.Appointment
+	if err := config.DB.
+		Preload("Patient").
+		Preload("DoctorProfile").
+		Where("id = ? AND doctor_profile_id = ?", appointmentID, doctorProfile.ID).
+		First(&appointment).Error; err != nil {
+		http.Error(w, "Appointment not found", http.StatusNotFound)
+		return
+	}
+
+	if *appointment.Summary == "" {
+		http.Error(w, "No summary found for this appointment", http.StatusNotFound)
+		return
+	}
+
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.AddPage()
+	pdf.SetFont("Arial", "B", 16)
+	pdf.Cell(40, 10, "Appointment Summary")
+	pdf.Ln(12)
+
+	pdf.SetFont("Arial", "", 12)
+	pdf.Cell(40, 10, "Patient Name: "+appointment.Patient.Name)
+	pdf.Ln(8)
+	pdf.Cell(40, 10, "Doctor: "+appointment.DoctorProfile.ClinicName+" - "+appointment.DoctorProfile.Specialization)
+	pdf.Ln(8)
+	pdf.Cell(40, 10, "Date: "+appointment.ScheduledAt.Format("Jan 2, 2006 3:04 PM"))
+	pdf.Ln(8)
+	pdf.MultiCell(0, 10, "Summary:\n"+*appointment.Summary, "", "", false)
+
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", "attachment; filename=appointment_summary.pdf")
+	err := pdf.Output(w)
+	if err != nil {
+		http.Error(w, "Failed to generate PDF", http.StatusInternalServerError)
+	}
 }

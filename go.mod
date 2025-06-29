@@ -19,6 +19,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/jung-kurt/gofpdf v1.16.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/twilio/twilio-go v1.26.3 // indirect
 	golang.org/x/crypto v0.39.0 // indirect

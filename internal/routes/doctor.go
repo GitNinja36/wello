@@ -49,4 +49,7 @@ func DoctorRoutes(r chi.Router) {
 	//Get All Unique Patients of a Doctor
 	r.With(middleware.JWTAuthMiddleware).Get("/patients", controllers.GetAllPatientsForDoctor)
 
+	// Download/Print Summary as PDF
+	r.With(middleware.JWTAuthMiddleware).Get("/appointments/{id}/summary-pdf", controllers.GenerateSummaryPDF)
+
 }
