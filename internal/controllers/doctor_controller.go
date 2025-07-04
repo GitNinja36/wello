@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/GitNinja36/wello-backend/config"
@@ -776,4 +777,52 @@ func UploadTestReport(w http.ResponseWriter, r *http.Request) {
 		"message": "Report URL saved successfully",
 		"url":     req.ReportURL,
 	})
+}
+
+// Get All Doctors
+func GetAllDoctors(w http.ResponseWriter, r *http.Request) {
+	specialization := r.URL.Query().Get("specialization")
+	search := r.URL.Query().Get("search")
+	minRating := r.URL.Query().Get("minRating")
+
+	var doctors []models.DoctorProfile
+
+	query := config.DB.Preload("User").Preload("Reviews").Where("is_pending = ?", false)
+
+	if specialization != "" {
+		query = query.Where("LOWER(specialization) LIKE ?", "%"+strings.ToLower(specialization)+"%")
+	}
+	if search != "" {
+		query = query.Joins("JOIN users ON users.id = doctor_profiles.user_id").
+			Where("LOWER(users.name) LIKE ?", "%"+strings.ToLower(search)+"%")
+	}
+	if minRating != "" {
+		query = query.Where("rating >= ?", minRating)
+	}
+
+	if err := query.Find(&doctors).Error; err != nil {
+		http.Error(w, "Failed to fetch doctors", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(doctors)
+}
+
+// Get Single Doctor by ID
+func GetDoctorByID(w http.ResponseWriter, r *http.Request) {
+
+	id := chi.URLParam(r, "id")
+	var doctor models.DoctorProfile
+	err := config.DB.
+		Preload("User").
+		Preload("Reviews").
+		First(&doctor, "id = ?", id).Error
+
+	if err != nil {
+		http.Error(w, "Doctor not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(doctor)
 }

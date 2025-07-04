@@ -7,7 +7,7 @@ import (
 type DoctorProfile struct {
 	ID                string    `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	UserID            string    `gorm:"uniqueIndex" json:"userId"`
-	User              *User     `gorm:"constraint:OnDelete:CASCADE;" json:"-"`
+	User              *User     `gorm:"constraint:OnDelete:CASCADE;" json:"user"`
 	Specialization    string    `json:"specialization"`
 	LicenseNumber     string    `json:"licenseNumber"`
 	ConsultationFees  float64   `json:"consultationFees"`

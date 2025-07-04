@@ -57,4 +57,10 @@ func DoctorRoutes(r chi.Router) {
 
 	//Uploading Test Reports
 	r.With(middleware.JWTAuthMiddleware).Put("/tests/{id}/upload-report", controllers.UploadTestReport)
+
+	// Get All Doctors
+	r.With(middleware.JWTAuthMiddleware).Get("/", controllers.GetAllDoctors)
+
+	// Get Single Doctor by ID
+	r.With(middleware.JWTAuthMiddleware).Get("/{id}", controllers.GetDoctorByID)
 }
